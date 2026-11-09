@@ -6811,3 +6811,115 @@ fn invalid_module_constant_returns_codegen_error() {
     assert_eq!(name, "test_module.x");
     assert!(matches!(*error, uplc::machine::Error::DivideByZero(..)));
 }
+
+#[test]
+fn when_list_longer_spread_before_shorter_spread() {
+    // https://github.com/aiken-lang/aiken/issues/1440
+    let src = r#"
+        fn classify(xs: List<Int>) -> Int {
+          when xs is {
+            [0, 0, ..] -> 1
+            [_, ..] -> 2
+            [] -> 3
+          }
+        }
+
+        test foo() {
+          and {
+            classify([0, 0]) == 1,
+            classify([0, 0, 7]) == 1,
+            classify([0, 1]) == 2,
+            classify([0]) == 2,
+            classify([]) == 3,
+          }
+        }
+    "#;
+
+    assert_uplc_evaluates_successfully(src);
+}
+
+#[test]
+fn when_list_spread_selects_longest_fitting_spread() {
+    // https://github.com/aiken-lang/aiken/issues/1440
+    let src = r#"
+        fn classify(xs: List<Int>) -> Int {
+          when xs is {
+            [1, ..] -> 1
+            [0, 0, ..] -> 2
+            [_, _, _, _, ..] -> 3
+            [_, ..] -> 4
+            [] -> 5
+          }
+        }
+
+        test foo() {
+          and {
+            classify([1]) == 1,
+            classify([0, 0]) == 2,
+            classify([0, 0, 9]) == 2,
+            classify([9, 9, 9, 9]) == 3,
+            classify([9, 9, 9]) == 4,
+            classify([9, 9]) == 4,
+            classify([9]) == 4,
+            classify([]) == 5,
+          }
+        }
+    "#;
+
+    assert_uplc_evaluates_successfully(src);
+}
+
+#[test]
+fn when_list_partial_shorter_spread_does_not_crash() {
+    // https://github.com/aiken-lang/aiken/issues/1440
+    let src = r#"
+        fn classify(xs: List<Int>) -> Int {
+          when xs is {
+            [_, _, ..] -> 1
+            [0, ..] -> 2
+            [_] -> 3
+            [] -> 4
+          }
+        }
+
+        test foo() {
+          and {
+            classify([5, 5]) == 1,
+            classify([0, 0]) == 1,
+            classify([0]) == 2,
+            classify([5]) == 3,
+            classify([]) == 4,
+          }
+        }
+    "#;
+
+    assert_uplc_evaluates_successfully(src);
+}
+
+#[test]
+fn when_list_spread_on_list_longer_than_any_pattern() {
+    // https://github.com/aiken-lang/aiken/issues/1440
+    let src = r#"
+        fn classify(xs: List<Int>) -> Int {
+          when xs is {
+            [1, 2, 3] -> 1
+            [0, 0, ..] -> 2
+            [_, ..] -> 3
+            [] -> 4
+          }
+        }
+
+        test foo() {
+          and {
+            classify([1, 2, 3]) == 1,
+            classify([0, 0, 0, 0]) == 2,
+            classify([0, 0, 0]) == 2,
+            classify([1, 2, 3, 4]) == 3,
+            classify([9]) == 3,
+            classify([]) == 4,
+          }
+        }
+    "#;
+
+    assert_uplc_evaluates_successfully(src);
+}
