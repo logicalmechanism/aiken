@@ -7006,3 +7006,50 @@ fn when_list_spread_on_list_longer_than_any_pattern() {
 
     assert_uplc_evaluates_successfully(src);
 }
+
+#[test]
+fn when_clause_shadowing_a_variable_read_by_another_clause() {
+    let src = r#"
+        fn fee(mode: (Int, Option<Int>), amount: Int) -> Int {
+          when mode is {
+            (0, None) -> amount
+            (amount, _) -> amount + 1
+          }
+        }
+
+        test foo() {
+          and {
+            fee((0, None), 9) == 9,
+            fee((4, None), 9) == 5,
+            fee((0, Some(1)), 9) == 1,
+          }
+        }
+    "#;
+
+    assert_uplc_evaluates_successfully(src);
+}
+
+#[test]
+fn when_list_clause_shadowing_a_let_read_by_another_clause() {
+    let src = r#"
+        fn pick(xs: List<Int>, x: Int) -> Int {
+          let amount = x * 2
+          when xs is {
+            [0, 0] -> amount
+            [amount, _] -> amount + 1
+            _ -> 0
+          }
+        }
+
+        test foo() {
+          and {
+            pick([0, 0], 9) == 18,
+            pick([4, 0], 9) == 5,
+            pick([0, 1], 9) == 1,
+            pick([], 9) == 0,
+          }
+        }
+    "#;
+
+    assert_uplc_evaluates_successfully(src);
+}
